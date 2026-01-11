@@ -1,0 +1,11 @@
+class Config:
+    SAMPLE_RATE = 22050
+    HOP_LENGTH = 256
+    FRAME_LENGTH = 2048
+    N_FFT = 2048
+
+    FMIN = 65
+    FMAX = 1500
+
+    CONF_THRESHOLD = 0.5
+    MIN_NOTE_DURATION = 0.25
