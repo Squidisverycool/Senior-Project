@@ -1,25 +1,13 @@
-# Core numerical stack (PINNED for compatibility)
-numpy>=1.24,<2.0
-scipy>=1.10,<1.13
-
-# Audio & MIR
-librosa>=0.10,<0.11
+numpy<2.0
+scipy
+librosa
 soundfile
-
-# Plotting
 matplotlib
-
-# Machine learning / pitch
-torch>=2.0,<2.3
+torch
 torchaudio
-crepe @ git+https://github.com/marl/crepe.git
-# If you switched to torchcrepe instead, comment the line above and use:
-# torchcrepe
-
-# Source separation
+gradio
 demucs
-
-# Utilities
 fastdtw
 mido
 torchcodec
+crepe @ git+https://github.com/marl/crepe.git
