@@ -17,4 +17,9 @@ Thumbs.db
 .vscode/
 
 # Hugging Face / temp
+# Audio samples
+sample/
+*.mp3
+*.wav
+*.flac
 .cache/
