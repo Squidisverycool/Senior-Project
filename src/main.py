@@ -1,13 +1,13 @@
 import sys, os
-from config import Config
-from audio_io import load_audio
-from separation import separate_vocals_demucs
-from pitch import extract_pitch_vocal
-from rhythm import detect_beats
-from postprocess import bridge_short_gaps, enforce_beatwise_pitch
-from synthesis import resynthesize_f0
-from visualization import plot_pitch
-from notes import segment_notes_from_pitch   # ✅ MISSING IMPORT
+from src.config import Config
+from src.audio_io import load_audio
+from src.separation import separate_vocals_demucs
+from src.pitch import extract_pitch_vocal
+from src.rhythm import detect_beats
+from src.postprocess import bridge_short_gaps, enforce_beatwise_pitch
+from src.synthesis import resynthesize_f0
+from src.visualization import plot_pitch
+from src.notes import segment_notes_from_pitch   # ✅ MISSING IMPORT
 import soundfile as sf
 
 

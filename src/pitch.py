@@ -2,7 +2,7 @@ import numpy as np
 import librosa
 import crepe
 from scipy.signal import savgol_filter
-from config import Config
+from src.config import Config
 
 def extract_pitch_vocal(y, sr):
     """

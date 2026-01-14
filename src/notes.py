@@ -1,6 +1,6 @@
 import numpy as np
 import librosa
-from config import Config
+from src.config import Config
 
 _NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F',
                'F#', 'G', 'G#', 'A', 'A#', 'B']
