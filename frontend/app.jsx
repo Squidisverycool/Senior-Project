@@ -1,55 +1,86 @@
-import React from "react";
+import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 
 function App() {
+  /* ===============================
+     STATE (TOP OF COMPONENT)
+  =============================== */
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+
+  /* ===============================
+     EVENT HANDLER (LOGIC)
+  =============================== */
+  const handleUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    setLoading(true);
+    setResult(null);
+
+    try {
+      const res = await fetch("/analyze", {
+        method: "POST",
+        body: formData
+      });
+
+      if (!res.ok) throw new Error("Analysis failed");
+
+      const data = await res.json();
+      setResult(data);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ===============================
+     UI (JSX)
+  =============================== */
   return (
     <div className="app">
-      {/* Header */}
-      <header className="header">
-        <div className="logo">
-          🎵 <span>VoiceCoach</span>
+      <h1>VoiceCoach</h1>
+
+      {/* Upload */}
+      <input
+        type="file"
+        accept="audio/*"
+        onChange={handleUpload}
+      />
+
+      {/* Loading */}
+      {loading && <p>Analyzing audio… 🎧</p>}
+
+      {/* Results */}
+      {result && (
+        <div className="results">
+          <h2>Analysis Result</h2>
+
+          {/* Pitch Plot */}
+          <img
+            src={`/file?path=${result.pitch_plot}`}
+            alt="Pitch plot"
+            style={{ width: "100%", marginBottom: "16px" }}
+          />
+
+          {/* Resynth Audio */}
+          <audio controls>
+            <source
+              src={`/file?path=${result.resynth_path}`}
+              type="audio/wav"
+            />
+          </audio>
+
+          {/* Notes JSON (temporary) */}
+          <pre>
+            {JSON.stringify(result.notes, null, 2)}
+          </pre>
         </div>
-        <nav className="nav">
-          <a href="#">Help</a>
-          <a href="#">Settings</a>
-        </nav>
-      </header>
-
-      {/* Main */}
-      <main className="main">
-        <h1>Start Your Vocal Training</h1>
-        <p className="subtitle">
-          Upload or record your singing to get instant feedback and analysis
-        </p>
-
-        <div className="card-row">
-          {/* Upload */}
-          <div className="card">
-            <div className="icon upload">⬆️</div>
-            <h3>Upload Audio</h3>
-            <p>Select an audio file of your singing (MP3, WAV, M4A)</p>
-            <button className="primary">Choose File</button>
-          </div>
-
-          {/* Record */}
-          <div className="card">
-            <div className="icon record">🎙️</div>
-            <h3>Record Live</h3>
-            <p>Record your voice directly using your microphone</p>
-            <button className="secondary">Start Recording</button>
-          </div>
-        </div>
-
-        {/* Tips */}
-        <div className="tips">
-          <h4>💡 Tips for Best Results</h4>
-          <ul>
-            <li>Record in a quiet environment with minimal background noise</li>
-            <li>Sing clearly and confidently, staying close to your microphone</li>
-            <li>Upload files with a single vocal track for accurate analysis</li>
-          </ul>
-        </div>
-      </main>
+      )}
     </div>
   );
 }

@@ -131,3 +131,11 @@ button {
   margin-bottom: 8px;
   color: #374151;
 }
+
+.results {
+  margin-top: 40px;
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+}
