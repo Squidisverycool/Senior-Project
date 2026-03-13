@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Header } from "@/app/components/Header";
 import { Footer } from "@/app/components/Footer";
 import { AudioUploadSection } from "@/app/components/AudioUploadSection";
@@ -46,6 +46,19 @@ export default function App() {
   const handleReset = () => {
     console.log("Reset pitch adjustments");
   };
+
+  // Convert notes into playback format
+  const playbackNotes = useMemo(() => {
+  if (!notes.length) return [];
+
+  const firstStart = notes[0].start;
+
+  return notes.map((note) => ({
+    frequency: 440 * Math.pow(2, (note.midi - 69) / 12),
+    start: note.start - firstStart,
+    duration: note.end - note.start,
+  }));
+}, [notes]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-900 to-black">
@@ -132,6 +145,7 @@ export default function App() {
               <PlaybackControls
                 playbackMode={playbackMode}
                 onPlaybackModeChange={setPlaybackMode}
+                notes={playbackNotes}
               />
             </section>
 
