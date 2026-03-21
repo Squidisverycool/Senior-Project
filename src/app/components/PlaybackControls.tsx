@@ -10,150 +10,158 @@ import {
   TooltipTrigger,
 } from "@/app/components/ui/tooltip";
 
-interface Note {
-  frequency: number;
-  start: number;
-  duration: number;
+interface PitchPoint {
+  time: number
+  frequency: number
 }
 
 interface PlaybackControlsProps {
   playbackMode: "original" | "edited";
   onPlaybackModeChange: (mode: "original" | "edited") => void;
-  notes?: Note[];
+  pitchCurve?: PitchPoint[];
   originalAudioUrl?: string;
 }
 
 export function PlaybackControls({
   playbackMode,
   onPlaybackModeChange,
-  notes = [],
+  pitchCurve = [],
   originalAudioUrl,
 }: PlaybackControlsProps) {
 
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [playbackProgress, setPlaybackProgress] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [playbackProgress, setPlaybackProgress] = useState(0)
 
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const stopRef = useRef(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  const playheadStartRef = useRef(0)
+  const animationRef = useRef<number>()
+
+  const oscRef = useRef<OscillatorNode | null>(null)
 
   useEffect(() => {
-    audioContextRef.current = new AudioContext();
-  }, []);
+    audioContextRef.current = new AudioContext()
+  }, [])
 
-  useEffect(() => {
-    if (!isPlaying) {
-      setPlaybackProgress(0);
-      return;
+  const getTotalDuration = () => {
+    if (!pitchCurve.length) return 0
+
+    return Math.max(...pitchCurve.map(p => p.time))
+  }
+
+
+  const updatePlayhead = () => {
+
+    const total = getTotalDuration()
+    if (!total) return
+
+    const elapsed =
+      audioContextRef.current!.currentTime - playheadStartRef.current
+
+    const progress = Math.min((elapsed / total) * 100, 100)
+
+    setPlaybackProgress(progress)
+
+    if (progress < 100) {
+      animationRef.current = requestAnimationFrame(updatePlayhead)
+    } else {
+      setIsPlaying(false)
     }
+  }
 
-    const interval = setInterval(() => {
-      setPlaybackProgress((prev) => Math.min(prev + 1, 100));
-    }, 100);
+  const playPitchCurve = async () => {
 
-    return () => clearInterval(interval);
-  }, [isPlaying]);
+    if (!audioContextRef.current || !pitchCurve.length) return
 
-  const createVoiceSynth = (ctx: AudioContext, frequency: number, duration: number) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+    const ctx = audioContextRef.current
+    await ctx.resume()
 
-    const formant1 = ctx.createBiquadFilter();
-    const formant2 = ctx.createBiquadFilter();
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
 
-    osc.type = "sawtooth";
-    osc.frequency.value = frequency;
+    osc.type = "sawtooth"
 
-    formant1.type = "bandpass";
-    formant1.frequency.value = 800;
-    formant1.Q.value = 6;
+    osc.connect(gain)
+    gain.connect(ctx.destination)
 
-    formant2.type = "bandpass";
-    formant2.frequency.value = 1200;
-    formant2.Q.value = 6;
+    oscRef.current = osc
 
-    osc.connect(formant1);
-    formant1.connect(formant2);
-    formant2.connect(gain);
-    gain.connect(ctx.destination);
+    const baseTime = ctx.currentTime
 
-    const now = ctx.currentTime;
+    playheadStartRef.current = baseTime
 
-    // ADSR envelope
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.7, now + 0.03);   // attack
-    gain.gain.linearRampToValueAtTime(0.5, now + 0.1);    // decay
-    gain.gain.setValueAtTime(0.5, now + duration - 0.05); // sustain
-    gain.gain.linearRampToValueAtTime(0, now + duration); // release
+    pitchCurve.forEach((point, i) => {
 
-    osc.start(now);
-    osc.stop(now + duration);
-  };
+      const t = baseTime + point.time
 
-  const playNotes = () => {
-  if (!audioContextRef.current) return;
+      if (i === 0) {
+        osc.frequency.setValueAtTime(point.frequency, t)
+      } else {
+        osc.frequency.linearRampToValueAtTime(point.frequency, t)
+      }
 
-  const ctx = audioContextRef.current;
-  const baseTime = ctx.currentTime;
+    })
 
-  notes.forEach((note) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+    const endTime = baseTime + getTotalDuration()
 
-    osc.type = "sawtooth";
-    osc.frequency.value = note.frequency;
+    gain.gain.setValueAtTime(0, baseTime)
+    gain.gain.linearRampToValueAtTime(0.7, baseTime + 0.03)
+    gain.gain.setValueAtTime(0.6, endTime - 0.05)
+    gain.gain.linearRampToValueAtTime(0, endTime)
 
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+    osc.start(baseTime)
+    osc.stop(endTime + 0.1)
 
-    const startTime = baseTime + note.start;
-    const endTime = startTime + note.duration;
+    animationRef.current = requestAnimationFrame(updatePlayhead)
+    console.log("pitchCurve", pitchCurve)
 
-    gain.gain.setValueAtTime(0, startTime);
-    gain.gain.linearRampToValueAtTime(0.7, startTime + 0.03);
-    gain.gain.setValueAtTime(0.6, endTime - 0.03);
-    gain.gain.linearRampToValueAtTime(0, endTime);
-
-    osc.start(startTime);
-    osc.stop(endTime);
-  });
-};
+  }
 
   const playOriginal = () => {
-    if (!originalAudioUrl) return;
+
+    if (!originalAudioUrl) return
 
     if (!audioRef.current) {
-      audioRef.current = new Audio(originalAudioUrl);
+      audioRef.current = new Audio(originalAudioUrl)
     }
 
-    audioRef.current.currentTime = 0;
-    audioRef.current.play();
-  };
+    audioRef.current.currentTime = 0
+    audioRef.current.play()
+  }
 
   const stopPlayback = () => {
-    stopRef.current = true;
+
+    setIsPlaying(false)
+
+    cancelAnimationFrame(animationRef.current!)
+
+    if (oscRef.current) {
+      oscRef.current.stop()
+      oscRef.current = null
+    }
 
     if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
     }
-  };
+  }
 
   const togglePlayback = () => {
+
     if (isPlaying) {
-      stopPlayback();
-      setIsPlaying(false);
-      return;
+      stopPlayback()
+      return
     }
 
-    setIsPlaying(true);
+    setIsPlaying(true)
 
     if (playbackMode === "original") {
-      playOriginal();
+      playOriginal()
     } else {
-      playNotes();
+      playPitchCurve()
     }
-  };
+  }
 
   return (
     <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 rounded-2xl border border-zinc-700/50 p-6 md:p-8 space-y-5 shadow-2xl">
@@ -256,5 +264,5 @@ export function PlaybackControls({
       </div>
 
     </div>
-  );
+  )
 }

@@ -6,9 +6,8 @@ import { PitchVisualization } from "@/app/components/PitchVisualization";
 import { PitchControls } from "@/app/components/PitchControls";
 import { PlaybackControls } from "@/app/components/PlaybackControls";
 import { SingAlongSection } from "@/app/components/SingAlongSection";
-import { ArrowDown, Mic } from "lucide-react";
-import { NoteTableEditor } from "@/app/components/NoteTableEditor";
-import { Note } from "@/app/components/NoteTableEditor";
+import { ArrowDown, SlidersHorizontal, Music2 } from "lucide-react";
+import { NoteTableEditor, Note } from "@/app/components/NoteTableEditor";
 import { mockNotes } from "@/mock/mockNotes";
 
 export default function App() {
@@ -17,9 +16,8 @@ export default function App() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [snapToNote, setSnapToNote] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
-  const [isNoteTableOpen, setIsNoteTableOpen] = useState(true);
-  const [playbackMode, setPlaybackMode] =
-    useState<"original" | "edited">("original");
+  const [playbackMode, setPlaybackMode] = useState<"original" | "edited">("original");
+  const [activePanel, setActivePanel] = useState<"none" | "notes" | "playback">("none");
 
   const visualizationRef = useRef<HTMLElement>(null);
 
@@ -47,18 +45,33 @@ export default function App() {
     console.log("Reset pitch adjustments");
   };
 
-  // Convert notes into playback format
+  const pitchCurve = useMemo(() => {
+    if (!notes.length) return [];
+    const firstStart = notes[0].start;
+    return notes.flatMap((note) => {
+      const start = note.start - firstStart;
+      const end = note.end - firstStart;
+      const frequency = 440 * Math.pow(2, (note.midi - 69) / 12);
+      return [
+        { time: start, frequency },
+        { time: end, frequency },
+      ];
+    });
+  }, [notes]);
+
   const playbackNotes = useMemo(() => {
-  if (!notes.length) return [];
+    if (!notes.length) return [];
+    const firstStart = notes[0].start;
+    return notes.map((note) => ({
+      frequency: 440 * Math.pow(2, (note.midi - 69) / 12),
+      start: note.start - firstStart,
+      duration: note.end - note.start,
+    }));
+  }, [notes]);
 
-  const firstStart = notes[0].start;
-
-  return notes.map((note) => ({
-    frequency: 440 * Math.pow(2, (note.midi - 69) / 12),
-    start: note.start - firstStart,
-    duration: note.end - note.start,
-  }));
-}, [notes]);
+  const togglePanel = (panel: "notes" | "playback") => {
+    setActivePanel((prev) => (prev === panel ? "none" : panel));
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-900 to-black">
@@ -69,9 +82,7 @@ export default function App() {
         <section>
           <div className="flex items-center gap-3 mb-4">
             <div className="step-badge">1</div>
-            <h2 className="text-2xl font-bold text-white">
-              Upload Your Song
-            </h2>
+            <h2 className="text-2xl font-bold text-white">Upload Your Song</h2>
           </div>
           <AudioUploadSection onFileUploaded={handleFileUploaded} />
         </section>
@@ -91,42 +102,71 @@ export default function App() {
                 </h2>
               </div>
 
-              <PitchVisualization
-                notes={notes}
-                isRecording={isRecording}
-                curveMode={curveMode}
-              />
-
-              <div className="mt-6 border border-zinc-700 rounded-xl overflow-hidden bg-zinc-900/50">
-                <button
-                  onClick={() => setIsNoteTableOpen(!isNoteTableOpen)}
-                  className="w-full flex items-center justify-between px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold"
-                >
-                  <span>Note Table Editor</span>
-                  <ArrowDown
-                    className={`size-5 transition-transform duration-300 ${
-                      isNoteTableOpen ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
-
-                {isNoteTableOpen && (
-                  <div className="p-4">
-                    <NoteTableEditor
-                      notes={notes}
-                      onChange={setNotes}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-4">
-                <PitchControls
-                  snapToNote={snapToNote}
-                  onSnapToggle={setSnapToNote}
-                  onPitchAdjust={handlePitchAdjust}
-                  onReset={handleReset}
+              <div className="relative rounded-xl overflow-hidden">
+                <PitchVisualization
+                  notes={notes}
+                  isRecording={isRecording}
+                  curveMode={curveMode}
                 />
+
+                {/* Floating toolbar */}
+                <div className="absolute bottom-4 right-4 flex gap-2 z-10">
+                  <button
+                    onClick={() => togglePanel("playback")}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all shadow-lg ${
+                      activePanel === "playback"
+                        ? "bg-green-500 text-black"
+                        : "bg-zinc-800/90 text-white hover:bg-zinc-700"
+                    }`}
+                  >
+                    <Music2 className="size-4" />
+                    Preview
+                  </button>
+                  <button
+                    onClick={() => togglePanel("notes")}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all shadow-lg ${
+                      activePanel === "notes"
+                        ? "bg-green-500 text-black"
+                        : "bg-zinc-800/90 text-white hover:bg-zinc-700"
+                    }`}
+                  >
+                    <SlidersHorizontal className="size-4" />
+                    Notes
+                  </button>
+                </div>
+
+                {/* Slide-up panel */}
+                <div
+                  className={`transition-all duration-300 ease-in-out overflow-hidden bg-zinc-900 border-t border-zinc-700 ${
+                    activePanel !== "none"
+                      ? "max-h-[500px] opacity-100"
+                      : "max-h-0 opacity-0"
+                  }`}
+                >
+                  {activePanel === "playback" && (
+                    <div className="p-4">
+                      <PlaybackControls
+                        playbackMode={playbackMode}
+                        onPlaybackModeChange={setPlaybackMode}
+                        pitchCurve={pitchCurve}
+                      />
+                      <div className="mt-4">
+                        <PitchControls
+                          snapToNote={snapToNote}
+                          onSnapToggle={setSnapToNote}
+                          onPitchAdjust={handlePitchAdjust}
+                          onReset={handleReset}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {activePanel === "notes" && (
+                    <div className="p-4">
+                      <NoteTableEditor notes={notes} onChange={setNotes} />
+                    </div>
+                  )}
+                </div>
               </div>
             </section>
 
@@ -138,25 +178,6 @@ export default function App() {
             <section>
               <div className="flex items-center gap-3 mb-4">
                 <div className="step-badge">3</div>
-                <h2 className="text-2xl font-bold text-white">
-                  Preview & Compare
-                </h2>
-              </div>
-              <PlaybackControls
-                playbackMode={playbackMode}
-                onPlaybackModeChange={setPlaybackMode}
-                notes={playbackNotes}
-              />
-            </section>
-
-            <div className="flex justify-center">
-              <ArrowDown className="size-6 text-green-500 animate-bounce" />
-            </div>
-
-            {/* Step 4 */}
-            <section>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="step-badge">4</div>
                 <h2 className="text-2xl font-bold text-white">
                   Practice & Record
                 </h2>
